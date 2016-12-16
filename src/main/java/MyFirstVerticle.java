@@ -18,10 +18,8 @@ public class MyFirstVerticle extends Verticle {
     @Override
     public void start() {
         // declarations
-
         HttpServer serverSocket = vertx.createHttpServer();
         final EventBus usersBus = vertx.eventBus();
-        final ArrayList<String> registerdUsers = new ArrayList<>();
         final ArrayList<User> myInstances = new ArrayList<>();
         // websocket on
         serverSocket.websocketHandler(new Handler<ServerWebSocket>() {
@@ -30,14 +28,10 @@ public class MyFirstVerticle extends Verticle {
             public void handle(final ServerWebSocket serverWebSocket) {
                 JsonArray j = new JsonArray();
 
-                for(int i=0;i<registerdUsers.size();i++){
-                    j.add(registerdUsers.get(i));
-                }
                 System.out.println("Welcome to new Era");
-                JsonObject jsonObject = new JsonObject().putArray("registerdUsers", j);
+
                 final StringBuffer username = new StringBuffer();
                 final StringBuffer id = new StringBuffer();
-                serverWebSocket.writeTextFrame(jsonObject.toString()); // write the text that we got on connection (should be name)
 
                 final Handler<Message> messageHandler = new Handler<Message>() {
                     @Override
@@ -46,12 +40,9 @@ public class MyFirstVerticle extends Verticle {
                     }
                 };
 
-                System.out.println("After handler");
                 // if client want to end / close socket
                 serverWebSocket.closeHandler(e -> {
-                    System.out.println("Before removing: "+registerdUsers.toString());
                     System.out.println("Closed socket... in close handler now");
-                   // registerdUsers.remove(username.toString());
 
                     // remove right user
                     for(int i=0;i<myInstances.size();i++){
@@ -71,7 +62,6 @@ public class MyFirstVerticle extends Verticle {
                     usersBus.unregisterHandler("chat", messageHandler);
                     usersBus.unregisterHandler("chat/" + id.toString(), messageHandler);
 
-                    System.out.println("After removing, the list looks like: "+registerdUsers.toString());
                 });
 
                 // handle the data (json object that the user sends)
@@ -79,14 +69,12 @@ public class MyFirstVerticle extends Verticle {
                     System.out.println("before jsonobject but in datahandler");
                     JsonObject object = new JsonObject(buffer.toString());
                     System.out.println("After jsonobject datahandler and object is: "+object.toString());
-                    // check login
                     System.out.println("Username now is: "+username.toString());
-                    //if true --> go on
-                    // if false --> call register
-                    // then do this...
 
                     if (username.toString().equals("") ) { // om användaren inte är registrerad
 
+
+                        // database.....
                         username.append(object.getString("name")); // kan append null istället
                         id.append(object.getString("id"));
                         String preferedUser = object.getString("to");
@@ -95,13 +83,8 @@ public class MyFirstVerticle extends Verticle {
                         user.setPreferedUser(preferedUser);
                         myInstances.add(user);
 
-                        registerdUsers.add(username.toString());
-
                         usersBus.publish("chat", new JsonObject().putString("user", object.getString("name")).toString());
 
-                        // changed name to from!
-                       //  usersBus.registerHandler("chat/" + object.getString("name"), messageHandler);
-                        // registrera id
                         usersBus.registerHandler("chat/"+user.getId(), messageHandler);
                         usersBus.registerHandler("chat", messageHandler);
 
@@ -111,7 +94,6 @@ public class MyFirstVerticle extends Verticle {
                                 System.out.println("IN IF BITCH!");
                                 myInstances.get(i).setTo(username.toString());
                                 JsonObject message = new JsonObject().putString("toID", id.toString());
-                            //    usersBus.publish("chat/"+myInstances.get(i).getId(), message.toString());
                                 myInstances.get(i).setBusy(true);
                                 System.out.println("THE WHOLE MYINSTANCE THAT I GOT: id:"+myInstances.get(i).getId() + " ,username: "+myInstances.get(i).getUsername() + " ,prefereduser: "+myInstances.get(i).getPreferedUser() + " ,to: "+myInstances.get(i).getTo());
                                 System.out.println("Send my id to other user:"+id.toString());
@@ -124,10 +106,6 @@ public class MyFirstVerticle extends Verticle {
                                         break;
                                     }
                                 }
-                                // send to myself about the others id
-                           /*     JsonObject messageToMe = new JsonObject().putString("to", myInstances.get(i).getId());
-                                usersBus.publish("chat/"+id.toString(), messageToMe.toString());
-                                System.out.println("Send id to myself: "+myInstances.get(i).getId()); */
                                 break;
                             }
                         }
