@@ -81,13 +81,29 @@ public class MyFirstVerticle extends AbstractVerticle {
                     JsonObject object = new JsonObject(buffer.toString());
 
                     if(object.getString("option").equals("register")) {
-                        JsonObject document = new JsonObject().put("username", object.getValue("name")).put("password", object.getValue("password"));
-                        mongoClient.insert("vertxusers", document, insertResult -> {
-                            if (insertResult.succeeded()) {
-                                System.out.println("Succeded to insert the user with id: " + insertResult.result());
-                                loggedIDS.add(object.getString("id"));
+                        JsonObject document = new JsonObject().put("username", object.getValue("username")).put("password", object.getValue("password"));
+
+                        mongoClient.find("vertxusers", document, res -> {
+                            if (res.succeeded()) {
+                                if (res.result().size() > 0) {
+                                    System.out.println("Cannot register user already registerd!");
+                                    serverWebSocket.writeFinalTextFrame("/error");
+
+                                } else {
+                                    System.out.println("Didnt find the user and will register!");
+                                    mongoClient.save("vertxusers", document, insertResult -> {
+                                        if (insertResult.succeeded()) {
+                                            System.out.println("Name registering is: "+object.getValue("username"));
+                                            System.out.println("Succeded to insert the user with id: " + insertResult.result());
+                                            loggedIDS.add(object.getString("id"));
+                                        } else {
+                                            System.out.println("Failed to register user and will return");
+                                            serverWebSocket.writeFinalTextFrame("/error");
+                                        }
+                                    });
+                                }
                             } else {
-                                System.out.println("Failed to register user and will return");
+                                res.cause().printStackTrace();
                             }
                         });
                     }
@@ -174,7 +190,7 @@ public class MyFirstVerticle extends AbstractVerticle {
                             }
                         }
 
-                    }else if(loggedin.toString().equals("true")){ // om användaren är registrerad --> skicka meddelandet direkt
+                    }else if(loggedin.toString().equals("true")){
                         System.out.println("Else got: " + object.getString("from")+":"+object.getString("body"));
                         for (int i = 0; i < myInstances.size(); i++) {
                             if (myInstances.get(i).isBusy() && myInstances.get(i).getTo().equals(object.getString("from")) && myInstances.get(i).getPreferedUser().equals(username.toString()) && object.getString("to").equals(myInstances.get(i).getUsername()) && !object.getString("id").equals(myInstances.get(i).getId())) {
@@ -186,7 +202,7 @@ public class MyFirstVerticle extends AbstractVerticle {
                     }
                 });
             }
-        }).listen(1337, "130.229.183.91");
+        }).listen(1337, "192.168.1.8");
     }
 }
 
